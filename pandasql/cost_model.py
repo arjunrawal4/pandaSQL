@@ -13,6 +13,7 @@ class CostModel(object):
 
     def should_offload(self, df):
 
+
         # possible_executions = []
         graph = _get_dependency_graph(df)
         query_height = len(graph)
@@ -37,7 +38,7 @@ class CostModel(object):
             print('offloading from input size')
             return True
 
-        if len(aggregations) + len(joins) > 2:
+        if len(aggregations) + len(joins) >= 1:
             print('offloading from agg/join')
             return True
 
@@ -47,6 +48,7 @@ class CostModel(object):
 
 
         else:
+            print('running with pandas')
             return False
         # execution_estimates = []
         # for pe in possible_executions:

@@ -1,5 +1,6 @@
 import pandas as pd
 from typing import List
+import time
 
 from pandasql.utils import _is_supported_constant, _get_dependency_graph, \
     _topological_sort, _new_name
@@ -99,15 +100,23 @@ class BaseFrame(object):
     def _compute_sqlite(self):
         if self._cached_result is None:
             # Compute result and store in SQLite table
+            start = time.time()
+
             query = self.sql(dependencies=True)
             compute_query = 'CREATE TABLE {} AS {}'.format(self.name, query)
             SQL_CON.execute(compute_query)
+
+            time_taken_compute = time.time() - start
+
+            start = time.time()
 
             # Read table as Pandas DataFrame
             read_query = 'SELECT * FROM {}'.format(self.name)
             self._cached_result = pd.read_sql_query(read_query, con=SQL_CON)
             self._cached_on_sqlite = True
             self.columns = self._cached_result.columns
+            time_taken_read = time.time() - start
+            self._sql_timings = {'compute': time_taken_compute, 'read': time_taken_read}
 
         return self.result
 
@@ -359,7 +368,7 @@ class DataFrame(BaseFrame):
             # Offload dataframe to SQLite
             df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000)
             self._cached_on_sqlite = True
-            self._input_size = self._cached_result.memory_usage(deep=True).sum()
+            self._input_size = self._cached_result.memory_usage(deep=True, index=True).sum()
             print(self._input_size)
 
             # Store columns
