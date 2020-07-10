@@ -18,7 +18,7 @@ def generate_string_csv(rows):
 
     with open("string.csv", "w" ) as outf:
         outfile = csv.writer(outf)
-        outfile.writerow('c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15')
+        outfile.writerow(['c0','c1','c2','c3','c4','c5','c6','c7','c8','c9','c10','c11','c12','c13','c14','c15'])
         for _ in range(rows):
             row = [get_random_string(12) for i in range(16)]
             outfile.writerow(row)

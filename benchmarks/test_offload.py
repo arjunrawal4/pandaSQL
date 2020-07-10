@@ -50,6 +50,17 @@ def division(module, type_df, n=None, **kwargs):
     str(type_df)
     return type_df
 
+
+def filter(module, type_df, n=None, **kwargs):
+    assert(isinstance(type_df, module.DataFrame))
+    type_df = type_df[type_df['c1'] == type_df['c2']]
+
+    if n is not None:
+        type_df = type_df.head(n=n)
+    str(type_df)
+    return type_df
+
+
 def statistics(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
     if isinstance(type_df, pandas.DataFrame):
