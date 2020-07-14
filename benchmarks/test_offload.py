@@ -4,6 +4,7 @@ import argparse
 
 import pandas
 import pandasql
+import gc
 
 def agg_add(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
@@ -25,16 +26,41 @@ def agg_max(module, type_df, n=None, **kwargs):
 
 def add(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    type_df['c1'] += type_df['c2'] + type_df['c3']
+    type_df['c0'] = type_df['c0'] + 0
+    type_df['c1'] = type_df['c1'] + 1
+    type_df['c2'] = type_df['c2'] + 2
+    type_df['c3'] = type_df['c3'] + 3
+    type_df['c4'] = type_df['c4'] + 4
+    type_df['c5'] = type_df['c5'] + 5
+    type_df['c6'] = type_df['c6'] + 6
+    type_df['c7'] = type_df['c7'] + 7
+    type_df['c8'] = type_df['c8'] + 8
+    type_df['c9'] = type_df['c9'] + 9
 
     if n is not None:
         type_df = type_df.head(n=n)
     str(type_df)
     return type_df
 
+def add_c(module, type_df, n=None, **kwargs):
+    assert(isinstance(type_df, module.DataFrame))
+    r1 = type_df['c0']
+    r2 = type_df['c1'] + r1
+    r3 = type_df['c2'] + r2
+    r4 = type_df['c3'] + r3
+    r5 = type_df['c4'] + r4
+    r6 = type_df['c5'] + r5
+    r7 = type_df['c6'] + r6
+    r8 = type_df['c7'] + r7
+    r9 = type_df['c8'] + r8
+    r10 = type_df['c9'] + r9
+
+    str(r10)
+    return r10
+
 def multiplication(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    type_df['c1'] /= type_df['c2']
+    type_df['c1'] *= type_df['c2']
 
     if n is not None:
         type_df = type_df.head(n=n)
@@ -158,13 +184,13 @@ def run_benchmark(benchmark, nrows, limit=None):
 
 
 
-def run_type_benchmark(benchmark, nrows, data_file, limit=None,):
+def run_type_benchmark(benchmark, nrows, data_file, runs, limit=None,):
 
     func = globals()[benchmark]
 
     print(f"Reading {nrows} CSV rows, running {benchmark} with limit={limit}")
 
-    stats = {"pandas": {}, "pandaSQL": {"sql": {}}, "dask": {},
+    stats = {"pandas": {}, "pandaSQL": {"sql": {}},
              "nrows": nrows, "benchmark": benchmark, "limit": limit}
 
     start = time.time()
@@ -172,27 +198,46 @@ def run_type_benchmark(benchmark, nrows, data_file, limit=None,):
 
     time_taken = time.time() - start
     stats['pandas']['read_time'] = time_taken
+    stats['pandas']['run_time'] = 0
 
-    start = time.time()
-    func(pandas, type_df, n=limit,)
-    time_taken = time.time() - start
-    stats['pandas']['run_time'] = time_taken
+    for _ in range(0,runs):
+        start = time.time()
+        res = func(pandas, type_df, n=limit,)
+        time_taken = time.time() - start
+        del res
+        gc.collect()
+        stats['pandas']['run_time'] += time_taken
 
     start = time.time()
 
     typ = pandasql.DataFrame(type_df)
 
+    del type_df
+    gc.collect()
+
     time_taken = time.time() - start
     stats['pandaSQL']['read_time'] = time_taken
+    stats['pandaSQL']['run_time'] = 0
+    stats['pandaSQL']['sql']['compute'] = 0
+    stats['pandaSQL']['sql']['read_out'] = 0
 
-    start = time.time()
-    res = func(pandasql, typ, n=limit,)
-    time_taken = time.time() - start
-    stats['pandaSQL']['run_time'] = time_taken
+    for _ in range(0,runs):
+        start = time.time()
+        res = func(pandasql, typ, n=limit,)
+        time_taken = time.time() - start
+        stats['pandaSQL']['run_time'] += time_taken
 
-    if hasattr(res, '_sql_timings'):
-        stats['pandaSQL']['sql']['compute'] = res._sql_timings['compute']
-        stats['pandaSQL']['sql']['read_out'] = res._sql_timings['read']
+        if hasattr(res, '_sql_timings'):
+            stats['pandaSQL']['sql']['compute'] += res._sql_timings['compute']
+            stats['pandaSQL']['sql']['read_out'] += res._sql_timings['read']
+        del res
+        gc.collect()
+
+    stats['pandas']['run_time'] /= runs
+    stats['pandaSQL']['run_time'] /= runs
+    stats['pandaSQL']['sql']['compute'] /= runs
+    stats['pandaSQL']['sql']['read_out'] /= runs
+
 
     print(json.dumps(stats, indent=4))
 
@@ -203,7 +248,8 @@ if __name__ == "__main__":
     parser.add_argument('--benchmark', type=str, required=True)
     parser.add_argument('--data', type=str, required=False, default='integer')
     parser.add_argument('--limit', type=int, default=None)
+    parser.add_argument('--runs', type=int, default=10)
     args = parser.parse_args()
 
     # run_benchmark(args.benchmark, args.nrows, args.limit)
-    run_type_benchmark(args.benchmark, args.nrows, args.data, args.limit)
+    run_type_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.limit)

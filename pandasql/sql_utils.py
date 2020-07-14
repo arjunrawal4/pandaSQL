@@ -93,6 +93,7 @@ CUSTOM_AGGREGATORS = {
 
 def get_sqlite_connection():
     con = sqlite3.connect(":memory:") # TODO: limited by memory size so need a way to use disk at times
+    # con.execute("""PRAGMA cache_size = 16000""")
 
     for name, (func, num_args) in CUSTOM_FUNCTIONS.items():
         con.create_function(name, num_args, func)

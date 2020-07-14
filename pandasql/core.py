@@ -94,18 +94,21 @@ class BaseFrame(object):
             if store_on_sql:
                 self._cached_on_sqlite = True
                 result.to_sql(name=self.name, con=SQL_CON, index=False)
-
+                # SQL_CON.execute("ANALYZE")
         return self.result
 
     def _compute_sqlite(self):
         if self._cached_result is None:
             # Compute result and store in SQLite table
-            start = time.time()
+            SQL_CON.execute("VACUUM;")
+            SQL_CON.execute("ANALYZE;")
 
             query = self.sql(dependencies=True)
-            compute_query = 'CREATE TABLE {} AS {}'.format(self.name, query)
-            SQL_CON.execute(compute_query)
+            compute_query = 'CREATE TABLE {} AS {};'.format(self.name, query)
+            print(compute_query)
 
+            start = time.time()
+            SQL_CON.execute(compute_query)
             time_taken_compute = time.time() - start
 
             start = time.time()
@@ -366,10 +369,9 @@ class DataFrame(BaseFrame):
 
         if df is not None and len(df) > 0:
             # Offload dataframe to SQLite
-            df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000)
+            df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000, method='multi')
             self._cached_on_sqlite = True
             self._input_size = self._cached_result.memory_usage(deep=True, index=True).sum()
-            print(self._input_size)
 
             # Store columns
             self.columns = df.columns
@@ -1088,13 +1090,13 @@ def offloading_strategy(name=None):
 
 
 def should_offload_computation(df: BaseFrame):
-    print("determining best path strat: " + OFFLOADING_STRATEGY)
+    # print("determining best path strat: " + OFFLOADING_STRATEGY)
     if OFFLOADING_STRATEGY == 'ALWAYS':
         return True
     elif OFFLOADING_STRATEGY == 'NEVER':
         return False
     elif OFFLOADING_STRATEGY == 'BEST':
-        print('running cost model')
+        # print('running cost model')
         return COST_MODEL.should_offload(df)
         # TODO: put smart offloading logic here
     else:
@@ -1142,4 +1144,5 @@ def _make_projection_or_constant(x, simple=False, arithmetic=True):
 
 
 def stop():
+    SQL_CON.commit()
     SQL_CON.close()
