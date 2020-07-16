@@ -6,6 +6,18 @@ import pandas
 import pandasql
 import gc
 
+def make_registrar():
+    registry = []
+    def registrar(func):
+        registry.append(func.__name__)
+        return func
+    registrar.all = registry
+    return registrar
+
+reg = make_registrar()
+
+
+@reg
 def agg_add(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
     selection = type_df.sum()
@@ -15,6 +27,7 @@ def agg_add(module, type_df, n=None, **kwargs):
     str(selection)
     return selection
 
+@reg
 def agg_max(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
     selection = type_df.max()
@@ -24,24 +37,29 @@ def agg_max(module, type_df, n=None, **kwargs):
     str(selection)
     return selection
 
+@reg
+def group(module, type_df, n=None, **kwargs):
+    assert(isinstance(type_df, module.DataFrame))
+    # modded = type_df['c1'] % 10
+    # type_df['c1'] = modded
+    selection = type_df.groupby('c0').mean()['c1']
+    if n is not None:
+        selection = selection.head(n=n)
+    str(selection)
+    return selection
+
+@reg
 def add(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    type_df['c0'] = type_df['c0'] + 0
-    type_df['c1'] = type_df['c1'] + 1
-    type_df['c2'] = type_df['c2'] + 2
-    type_df['c3'] = type_df['c3'] + 3
-    type_df['c4'] = type_df['c4'] + 4
-    type_df['c5'] = type_df['c5'] + 5
-    type_df['c6'] = type_df['c6'] + 6
-    type_df['c7'] = type_df['c7'] + 7
-    type_df['c8'] = type_df['c8'] + 8
-    type_df['c9'] = type_df['c9'] + 9
+
+    selection = type_df['c0'] + type_df['c1'] + type_df['c2'] + type_df['c3'] + type_df['c4']
 
     if n is not None:
-        type_df = type_df.head(n=n)
-    str(type_df)
-    return type_df
+        selection = selection.head(n=n)
+    str(selection)
+    return selection
 
+@reg
 def add_c(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
     r1 = type_df['c0']
@@ -58,67 +76,20 @@ def add_c(module, type_df, n=None, **kwargs):
     str(r10)
     return r10
 
+@reg
 def multiplication(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    type_df['c1'] *= type_df['c2']
+    selection = type_df['c0'] * type_df['c1'] * type_df['c2'] * type_df['c3'] * type_df['c4']
 
     if n is not None:
-        type_df = type_df.head(n=n)
-    str(type_df)
-    return type_df
+        selection = selection.head(n=n)
+    str(selection)
+    return selection
 
+@reg
 def division(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    type_df['c1'] /= type_df['c2']
-
-    if n is not None:
-        type_df = type_df.head(n=n)
-    str(type_df)
-    return type_df
-
-
-def filter(module, type_df, n=None, **kwargs):
-    assert(isinstance(type_df, module.DataFrame))
-    type_df = type_df[type_df['c1'] == type_df['c2']]
-
-    if n is not None:
-        type_df = type_df.head(n=n)
-    str(type_df)
-    return type_df
-
-
-def statistics(module, type_df, n=None, **kwargs):
-    assert(isinstance(type_df, module.DataFrame))
-    if isinstance(type_df, pandas.DataFrame):
-        print(type_df.describe())
-    if isinstance(type_df, pandasql.DataFrame):
-        print(type_df.compute().describe())
-
-def selection(module, authors, books, n=None, **kwargs):
-    assert(isinstance(authors, module.DataFrame))
-    assert(isinstance(books, module.DataFrame))
-
-    selection = books[books['publication_year'] > 2000]
-    selection = selection[selection['publication_year'] >= 2001]
-    selection = selection[selection['publication_year'] >= 2002]
-    selection = selection[selection['publication_year'] >= 2003]
-    selection = selection[selection['publication_year'] >= 2004]
-    selection = selection[selection['publication_year'] >= 2005]
-    selection = selection[selection['publication_year'] >= 2006]
-    selection = selection[selection['publication_year'] >= 2007]
-    selection = selection[selection['publication_year'] >= 2008]
-    selection = selection[selection['publication_year'] >= 2009]
-    selection = selection[selection['publication_year'] >= 2010]
-    selection = selection[selection['publication_year'] >= 2011]
-    selection = selection[selection['publication_year'] >= 2012]
-    selection = selection[selection['publication_year'] >= 2013]
-    selection = selection[selection['publication_year'] >= 2014]
-    # selection = selection[selection['publication_year'] >= 2015]
-    # selection = selection[selection['publication_year'] >= 2016]
-    # selection = selection[selection['publication_year'] >= 2017]
-    # selection = selection[selection['publication_year'] >= 2018]
-    # selection = selection[selection['publication_year'] >= 2019]
-    # selection = selection[selection['publication_year'] >= 2020]
+    selection = type_df['c0'] / type_df['c1'] / type_df['c2'] / type_df['c3'] / type_df['c4']
 
     if n is not None:
         selection = selection.head(n=n)
@@ -126,62 +97,47 @@ def selection(module, authors, books, n=None, **kwargs):
     return selection
 
 
-def join(module, authors, books, n=None, **kwargs):
-    assert(isinstance(authors, module.DataFrame))
-    assert(isinstance(books, module.DataFrame))
-
-    merged = module.merge(books, authors, on=['first_name', 'last_name'])
+@reg
+def filter(module, type_df, n=None, **kwargs):
+    assert(isinstance(type_df, module.DataFrame))
+    selection = type_df[type_df['c1'] == type_df['c2']]
 
     if n is not None:
-        merged = merged.head(n=n)
-
-    str(merged)
-    return merged
-
-
-def run_benchmark(benchmark, nrows, limit=None):
-
-    func = globals()[benchmark]
-
-    print(f"Reading {nrows} CSV rows, running {benchmark} with limit={limit}")
-
-    stats = {"pandas": {}, "pandaSQL": {}, "dask": {},
-             "nrows": nrows, "benchmark": benchmark, "limit": limit}
-
-    start = time.time()
-    authors_df = pandas.read_csv('authors.csv')
-    books_df = pandas.read_csv('books.csv', nrows=nrows)
-
-    time_taken = time.time() - start
-    stats['pandas']['read_time'] = time_taken
-    print("[Pandas]   Time taken to read: {:0.3f} seconds".format(time_taken))
-
-    start = time.time()
-    func(pandas, authors_df, books_df, n=limit,)
-    time_taken = time.time() - start
-    stats['pandas']['run_time'] = time_taken
-    print("[Pandas]   Time taken to run:  {:0.3f} seconds".format(time_taken))
-
-    start = time.time()
-    # authors = pandasql.read_csv('authors.csv')
-    # books = pandasql.read_csv('books.csv', nrows=nrows)
-
-    authors = pandasql.DataFrame(authors_df)
-    books = pandasql.DataFrame(books_df)
-
-    time_taken = time.time() - start
-    stats['pandaSQL']['read_time'] = time_taken
-    print("[PandaSQL] Time taken to read: {:0.3f} seconds".format(time_taken))
-
-    start = time.time()
-    func(pandasql, authors, books, n=limit,)
-    time_taken = time.time() - start
-    stats['pandaSQL']['run_time'] = time_taken
-    print("[PandaSQL] Time taken to run:  {:0.3f} seconds".format(time_taken))
+        selection = selection.head(n=n)
+    str(selection)
+    return selection
 
 
-    print(json.dumps(stats, indent=4))
+@reg
+def statistics(module, type_df, n=None, **kwargs):
+    assert(isinstance(type_df, module.DataFrame))
+    if isinstance(type_df, pandas.DataFrame):
+        str(type_df.describe())
+    if isinstance(type_df, pandasql.DataFrame):
+        str(type_df.compute().describe())
+    return type_df
 
+@reg
+def selection(module, type_df, n=None, **kwargs):
+    assert(isinstance(type_df, module.DataFrame))
+
+
+    selection = type_df[type_df['c1'] >= 0 * 10**7]
+    selection = selection[selection['c1'] >= 1 * 10**7]
+    selection = selection[selection['c1'] >= 2 * 10**7]
+    selection = selection[selection['c1'] >= 3 * 10**7]
+    selection = selection[selection['c1'] >= 4 * 10**7]
+    selection = selection[selection['c1'] >= 5 * 10**7]
+    selection = selection[selection['c1'] >= 6 * 10**7]
+    selection = selection[selection['c1'] >= 7 * 10**7]
+    selection = selection[selection['c1'] >= 8 * 10**7]
+    selection = selection[selection['c1'] >= 9 * 10**7]
+    selection = selection[selection['c1'] >= 10 * 10**7]
+
+    if n is not None:
+        selection = selection.head(n=n)
+    str(selection)
+    return selection
 
 
 def run_type_benchmark(benchmark, nrows, data_file, runs, limit=None,):
@@ -198,7 +154,7 @@ def run_type_benchmark(benchmark, nrows, data_file, runs, limit=None,):
 
     time_taken = time.time() - start
     stats['pandas']['read_time'] = time_taken
-    stats['pandas']['run_time'] = 0
+    stats['pandas']['run_time'] = []
 
     for _ in range(0,runs):
         start = time.time()
@@ -206,7 +162,7 @@ def run_type_benchmark(benchmark, nrows, data_file, runs, limit=None,):
         time_taken = time.time() - start
         del res
         gc.collect()
-        stats['pandas']['run_time'] += time_taken
+        stats['pandas']['run_time'].append(time_taken)
 
     start = time.time()
 
@@ -217,29 +173,23 @@ def run_type_benchmark(benchmark, nrows, data_file, runs, limit=None,):
 
     time_taken = time.time() - start
     stats['pandaSQL']['read_time'] = time_taken
-    stats['pandaSQL']['run_time'] = 0
-    stats['pandaSQL']['sql']['compute'] = 0
-    stats['pandaSQL']['sql']['read_out'] = 0
+    stats['pandaSQL']['run_time'] = []
+    stats['pandaSQL']['sql']['compute'] = []
+    stats['pandaSQL']['sql']['read_out'] = []
 
     for _ in range(0,runs):
         start = time.time()
         res = func(pandasql, typ, n=limit,)
         time_taken = time.time() - start
-        stats['pandaSQL']['run_time'] += time_taken
+        stats['pandaSQL']['run_time'].append(time_taken)
 
         if hasattr(res, '_sql_timings'):
-            stats['pandaSQL']['sql']['compute'] += res._sql_timings['compute']
-            stats['pandaSQL']['sql']['read_out'] += res._sql_timings['read']
+            stats['pandaSQL']['sql']['compute'].append(res._sql_timings['compute'])
+            stats['pandaSQL']['sql']['read_out'].append(res._sql_timings['read'])
         del res
         gc.collect()
 
-    stats['pandas']['run_time'] /= runs
-    stats['pandaSQL']['run_time'] /= runs
-    stats['pandaSQL']['sql']['compute'] /= runs
-    stats['pandaSQL']['sql']['read_out'] /= runs
-
-
-    print(json.dumps(stats, indent=4))
+    print(json.dumps({str(benchmark):stats}, indent=4))
 
 
 if __name__ == "__main__":
@@ -251,5 +201,8 @@ if __name__ == "__main__":
     parser.add_argument('--runs', type=int, default=10)
     args = parser.parse_args()
 
-    # run_benchmark(args.benchmark, args.nrows, args.limit)
-    run_type_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.limit)
+    if args.benchmark == 'ALL':
+        for f in reg.all:
+            run_type_benchmark(f, args.nrows, args.data, args.runs, args.limit)
+    else:
+        run_type_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.limit)

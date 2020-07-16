@@ -105,7 +105,7 @@ class BaseFrame(object):
 
             query = self.sql(dependencies=True)
             compute_query = 'CREATE TABLE {} AS {};'.format(self.name, query)
-            print(compute_query)
+            # print(compute_query)
 
             start = time.time()
             SQL_CON.execute(compute_query)
@@ -369,7 +369,7 @@ class DataFrame(BaseFrame):
 
         if df is not None and len(df) > 0:
             # Offload dataframe to SQLite
-            df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000, method='multi')
+            df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000)
             self._cached_on_sqlite = True
             self._input_size = self._cached_result.memory_usage(deep=True, index=True).sum()
 
