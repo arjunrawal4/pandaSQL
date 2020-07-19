@@ -30,7 +30,7 @@ def join(module, df_a, df_b, n=None, **kwargs):
     return selection
 
 
-def run_join_benchmark(benchmark, nrows, file_base runs, limit=None,):
+def run_join_benchmark(benchmark, nrows, file_base, runs, limit=None,):
 
     func = globals()[benchmark]
 
@@ -40,8 +40,8 @@ def run_join_benchmark(benchmark, nrows, file_base runs, limit=None,):
              "nrows": nrows, "benchmark": benchmark, "limit": limit}
 
     start = time.time()
-    df_a = pandas.read_csv(data_file + '_a.csv',  nrows=nrows)
-    df_b = pandas.read_csv(data_file + '_b.csv',  nrows=nrows)
+    df_a = pandas.read_csv(file_base + '_a.csv',  nrows=nrows)
+    df_b = pandas.read_csv(file_base + '_b.csv',  nrows=nrows)
 
     time_taken = time.time() - start
     stats['pandas']['read_time'] = time_taken
@@ -89,13 +89,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--nrows', type=int, default=10**3, required=True)
     parser.add_argument('--benchmark', type=str, required=True)
-    parser.add_argument('--data', type=str, required=False, default='integer')
+    parser.add_argument('--data', type=str, required=False, default='int_join')
     parser.add_argument('--limit', type=int, default=None)
     parser.add_argument('--runs', type=int, default=10)
     args = parser.parse_args()
 
     if args.benchmark == 'ALL':
         for f in reg.all:
-            run_type_benchmark(f, args.nrows, args.data, args.runs, args.limit)
+            run_join_benchmark(f, args.nrows, args.data, args.runs, args.limit)
     else:
-        run_type_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.limit)
+        run_join_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.limit)

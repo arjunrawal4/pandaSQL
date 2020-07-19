@@ -52,35 +52,16 @@ def group(module, type_df, n=None, **kwargs):
 def add(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
 
-    selection = type_df['c0'] + type_df['c1'] + type_df['c2'] + type_df['c3'] + type_df['c4']
-
+    selection = type_df['c0'] + type_df['c1']
     if n is not None:
         selection = selection.head(n=n)
     str(selection)
     return selection
 
 @reg
-def add_c(module, type_df, n=None, **kwargs):
-    assert(isinstance(type_df, module.DataFrame))
-    r1 = type_df['c0']
-    r2 = type_df['c1'] + r1
-    r3 = type_df['c2'] + r2
-    r4 = type_df['c3'] + r3
-    r5 = type_df['c4'] + r4
-    r6 = type_df['c5'] + r5
-    r7 = type_df['c6'] + r6
-    r8 = type_df['c7'] + r7
-    r9 = type_df['c8'] + r8
-    r10 = type_df['c9'] + r9
-
-    str(r10)
-    return r10
-
-@reg
 def multiplication(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    selection = type_df['c0'] * type_df['c1'] * type_df['c2'] * type_df['c3'] * type_df['c4']
-
+    selection = type_df['c0'] * type_df['c1']
     if n is not None:
         selection = selection.head(n=n)
     str(selection)
@@ -89,7 +70,7 @@ def multiplication(module, type_df, n=None, **kwargs):
 @reg
 def division(module, type_df, n=None, **kwargs):
     assert(isinstance(type_df, module.DataFrame))
-    selection = type_df['c0'] / type_df['c1'] / type_df['c2'] / type_df['c3'] / type_df['c4']
+    selection = type_df['c0'] / type_df['c1']
 
     if n is not None:
         selection = selection.head(n=n)
@@ -108,36 +89,36 @@ def filter(module, type_df, n=None, **kwargs):
     return selection
 
 
-@reg
-def statistics(module, type_df, n=None, **kwargs):
-    assert(isinstance(type_df, module.DataFrame))
-    if isinstance(type_df, pandas.DataFrame):
-        str(type_df.describe())
-    if isinstance(type_df, pandasql.DataFrame):
-        str(type_df.compute().describe())
-    return type_df
+# @reg
+# def statistics(module, type_df, n=None, **kwargs):
+#     assert(isinstance(type_df, module.DataFrame))
+#     if isinstance(type_df, pandas.DataFrame):
+#         str(type_df.describe())
+#     if isinstance(type_df, pandasql.DataFrame):
+#         str(type_df.compute().describe())
+#     return type_df
 
-@reg
-def selection(module, type_df, n=None, **kwargs):
-    assert(isinstance(type_df, module.DataFrame))
+# @reg
+# def selection(module, type_df, n=None, **kwargs):
+#     assert(isinstance(type_df, module.DataFrame))
 
 
-    selection = type_df[type_df['c1'] >= 0 * 10**7]
-    selection = selection[selection['c1'] >= 1 * 10**7]
-    selection = selection[selection['c1'] >= 2 * 10**7]
-    selection = selection[selection['c1'] >= 3 * 10**7]
-    selection = selection[selection['c1'] >= 4 * 10**7]
-    selection = selection[selection['c1'] >= 5 * 10**7]
-    selection = selection[selection['c1'] >= 6 * 10**7]
-    selection = selection[selection['c1'] >= 7 * 10**7]
-    selection = selection[selection['c1'] >= 8 * 10**7]
-    selection = selection[selection['c1'] >= 9 * 10**7]
-    selection = selection[selection['c1'] >= 10 * 10**7]
+#     selection = type_df[type_df['c1'] >= 0 * 10**7]
+#     selection = selection[selection['c1'] >= 1 * 10**7]
+#     selection = selection[selection['c1'] >= 2 * 10**7]
+#     selection = selection[selection['c1'] >= 3 * 10**7]
+#     selection = selection[selection['c1'] >= 4 * 10**7]
+#     selection = selection[selection['c1'] >= 5 * 10**7]
+#     selection = selection[selection['c1'] >= 6 * 10**7]
+#     selection = selection[selection['c1'] >= 7 * 10**7]
+#     selection = selection[selection['c1'] >= 8 * 10**7]
+#     selection = selection[selection['c1'] >= 9 * 10**7]
+#     selection = selection[selection['c1'] >= 10 * 10**7]
 
-    if n is not None:
-        selection = selection.head(n=n)
-    str(selection)
-    return selection
+#     if n is not None:
+#         selection = selection.head(n=n)
+#     str(selection)
+#     return selection
 
 
 def run_type_benchmark(benchmark, nrows, data_file, runs, limit=None,):
