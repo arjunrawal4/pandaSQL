@@ -100,8 +100,8 @@ class BaseFrame(object):
     def _compute_sqlite(self):
         if self._cached_result is None:
             # Compute result and store in SQLite table
-            SQL_CON.execute("VACUUM;")
-            SQL_CON.execute("ANALYZE;")
+            # SQL_CON.execute("VACUUM;")
+            # SQL_CON.execute("ANALYZE;")
 
             query = self.sql(dependencies=True)
             compute_query = 'CREATE TABLE {} AS {};'.format(self.name, query)
