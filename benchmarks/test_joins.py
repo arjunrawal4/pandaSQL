@@ -30,7 +30,7 @@ def join(module, df_a, df_b, n=None, **kwargs):
     return selection
 
 
-def run_join_benchmark(benchmark, nrows, file_base, runs, limit=None,):
+def run_join_benchmark(benchmark, nrows, file_base, runs, percent=100, limit=None,):
 
     func = globals()[benchmark]
 
@@ -42,6 +42,8 @@ def run_join_benchmark(benchmark, nrows, file_base, runs, limit=None,):
     start = time.time()
     df_a = pandas.read_csv(file_base + '_a.csv',  nrows=nrows)
     df_b = pandas.read_csv(file_base + '_b.csv',  nrows=nrows)
+
+    df_b = df_b[df_b['c1'] <= 100_000_000 * percent/100.0]
 
     time_taken = time.time() - start
     stats['pandas']['read_time'] = time_taken
@@ -63,6 +65,9 @@ def run_join_benchmark(benchmark, nrows, file_base, runs, limit=None,):
     del df_a
     del df_b
     gc.collect()
+
+    ps_b = ps_b[ps_b['c1'] <= 100_000_000 * percent/100.0]
+    str(ps_b)
 
     time_taken = time.time() - start
     stats['pandaSQL']['read_time'] = time_taken
@@ -91,11 +96,12 @@ if __name__ == "__main__":
     parser.add_argument('--benchmark', type=str, required=True)
     parser.add_argument('--data', type=str, required=False, default='int_join')
     parser.add_argument('--limit', type=int, default=None)
+    parser.add_argument('--percent', type=int, default=100)
     parser.add_argument('--runs', type=int, default=10)
     args = parser.parse_args()
 
     if args.benchmark == 'ALL':
         for f in reg.all:
-            run_join_benchmark(f, args.nrows, args.data, args.runs, args.limit)
+            run_join_benchmark(f, args.nrows, args.data, args.runs, args.percent, args.limit)
     else:
-        run_join_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.limit)
+        run_join_benchmark(args.benchmark, args.nrows, args.data, args.runs, args.percent, args.limit)
