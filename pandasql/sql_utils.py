@@ -97,6 +97,13 @@ def get_sqlite_connection(file_name):
 
     con = sqlite3.connect(file_name)
 
+    c = con.cursor()
+    c.execute("PRAGMA synchronous = OFF")
+    c.execute("PRAGMA journal_mode = OFF")
+    c.execute("PRAGMA locking_mode = EXCLUSIVE")
+    c.execute("PRAGMA temp_store = MEMORY")
+    con.commit()
+
     for name, (func, num_args) in CUSTOM_FUNCTIONS.items():
         con.create_function(name, num_args, func)
 
