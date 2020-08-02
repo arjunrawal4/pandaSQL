@@ -352,9 +352,10 @@ class ArithmeticOperand(object):
 
 
 class DataFrame(BaseFrame):
-    def __init__(self, data=None, name=None, sources=None, deep_copy=False):
+    def __init__(self, data=None, name=None, sources=None, deep_copy=False, offload_needed=True):
         super().__init__(name=name, sources=sources)
         df = None
+        self.offload_needed = offload_needed
 
         # If data provided, result is already ready
         if isinstance(data, dict) or isinstance(data, list):
@@ -374,7 +375,8 @@ class DataFrame(BaseFrame):
 
         if df is not None and len(df) > 0:
             # Offload dataframe to SQLite
-            df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000)
+            if self.offload_needed:
+                df.to_sql(name=self.name, con=SQL_CON, index=False, chunksize=10000)
             self._cached_on_sqlite = True
 
             # Store columns
