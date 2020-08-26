@@ -1,4 +1,5 @@
 import os
+import sys
 from typing import List
 from tempfile import mkstemp
 import pandas as pd
@@ -69,7 +70,7 @@ class BaseFrame(object):
         if self._memory_usage is None:
             if isinstance(self._cached_result, pd.DataFrame):
                 self._memory_usage = self._cached_result.memory_usage(
-                    deep=True, index=True).sum()
+                    deep=True, index=True)
             elif isinstance(self._cached_result, pd.Series):
                 self._memory_usage = self._cached_result.memory_usage(
                     deep=True, index=True)
@@ -198,6 +199,9 @@ class BaseFrame(object):
     def all(self):
         return Aggregator('all', self)
 
+    def _predict_memory_from_sources(self):
+        raise NotImplementedError("To be implemented by subclasses")
+
     def __getattr__(self, attr):
         if attr in SUPPORTED_VIA_FALLBACK:
             def wrapped_op(*args, **kwargs):
@@ -227,6 +231,9 @@ class Constant(BaseFrame):
             raise TypeError('Unsupported type {}'.format(type(value)))
         self._cached_result = value
 
+    def _predict_memory_from_sources(self):
+        return sys.getsizeof(self._cached_result)
+
     def __str__(self):
         if isinstance(self._cached_result, str):
             return "'{}'".format(self._cached_result)
@@ -242,6 +249,7 @@ class Criterion(BaseFrame):
                  name=None, simple=True):
         # Simple criteria depend on comparisons between columns and/or
         # constants, whereas compound criteria depend on smaller criteria
+        self.simple = simple
         if simple:
             assert(isinstance(source_1, ArithmeticMixin) or
                    isinstance(source_1, Constant))
@@ -262,6 +270,9 @@ class Criterion(BaseFrame):
             sources.append(source_2)
 
         super().__init__(name=name, sources=sources)
+
+    def _predict_memory_from_sources(self):
+        return 8
 
     def __str__(self):
         '''Default for binary Criterion objects'''
@@ -541,6 +552,10 @@ class DataFrame(BaseFrame):
             raise ValueError('Keep support has not been added')
         return Projection(self, self.columns.tolist(), drop_duplicates=True)
 
+    def _predict_memory_from_sources(self):
+        assert self.result is not None
+        return self.memory_usage.sum()
+
     @require_result
     def __str__(self):
         return str(self.result)
@@ -616,6 +631,11 @@ class Update(object):
         self._sql_query = 'SELECT {} FROM {}'.format(', '.join(columns),
                                                      self.source.name)
 
+    def _predict_memory_from_sources(self):
+        old_mem = self.source.memory_usage.sum()
+        new_mem = self.source.stats[0]['count'] * 8  # TODO figure out type?
+        return old_mem + new_mem
+
     def __str__(self):
         val = self.value
         if isinstance(val, Projection):
@@ -648,6 +668,9 @@ class UpdateNames(object):
         self._sql_query = 'SELECT {} FROM {}'.format(', '.join(columns),
                                                      self.source.name)
 
+    def _predict_memory_from_sources(self):
+        return self.source.memory_usage.sum()
+
 
 class Projection(DataFrame, ArithmeticMixin):
     def __init__(self, source: DataFrame, col, name=None,
@@ -674,6 +697,9 @@ class Projection(DataFrame, ArithmeticMixin):
                                                        ', '.join(self.columns),
                                                        self.sources[0].name)
 
+    def _predict_memory_from_sources(self):
+        return self.sources[0].memory_usage[self.columns].sum()
+
     def _pandas(self):
         if self.dedup:
             return self.sources[0].result[self.columns].drop_duplicates()
@@ -688,9 +714,77 @@ class Selection(DataFrame):
         super().__init__(name=name, sources=[source])
         self.criterion = criterion
         self.columns = source.columns
-
         self._sql_query = 'SELECT * FROM {} WHERE {}'.format(
             self.sources[0].name, self.criterion)
+
+    def _predict_memory_from_sources(self):
+
+        def _predict_simple_criterion(chunk):
+            # string functions
+            crit = chunk
+            if isinstance(crit, IsIn):
+                raise NotImplementedError
+            if isinstance(crit, StartsWith):
+                raise NotImplementedError
+            if isinstance(crit, EndsWith):
+                raise NotImplementedError
+            if isinstance(crit, Equal):
+                raise NotImplementedError
+            if isinstance(crit, NotEqual):
+                raise NotImplementedError
+            if isinstance(crit, LessThan):
+                raise NotImplementedError
+            if isinstance(crit, LessThanOrEqual):
+                raise NotImplementedError
+            if isinstance(crit, GreaterThan):
+                if isinstance(crit.sources[0], Constant):
+                    cols = list(crit.sources[1].columns)
+                    stats = self.sources[1].stats[cols].iloc[:, 0]
+                    res = stats['5%':'95%'].searchsorted(crit.sources[0]._cached_result)
+                    res = 1 if res == 0 else res    # handle 0 index
+                    percent = (stats['5%':'95%'].keys()[res]).strip('%')
+                    dec = 1 - float(percent) / 100
+                    nrows = dec * stats['count']
+
+                elif isinstance(crit.sources[1], Constant):
+                    cols = list(crit.sources[0].columns)
+                    stats = self.sources[0].stats[cols].iloc[:, 0]
+                    res = stats['5%':'95%'].searchsorted(crit.sources[1]._cached_result)
+                    res = 1 if res == 0 else res   # handle 0 index
+                    percent = (stats['5%':'95%'].keys()[res]).strip('%')
+                    dec = 1 - float(percent) / 100
+                    nrows = dec * stats['count']
+                else:
+                    raise NotImplementedError
+                return nrows
+            if isinstance(crit, GreaterThanOrEqual):
+                raise NotImplementedError
+            return 0
+
+        def _rec_parser(chunk):    # predicts num rows
+            crit = chunk
+            print(chunk)
+
+            if crit.simple:
+                return _predict_simple_criterion(chunk)
+
+            # complex
+            if isinstance(crit, And):
+                return min(_rec_parser(crit.sources[0]),
+                           _rec_parser(crit.sources[1]))
+            if isinstance(crit, Or):
+                return max(_rec_parser(crit.sources[0]),
+                           _rec_parser(crit.sources[1]))
+            if isinstance(crit, Not):
+                return self.sources[0].stats[0]['count'] - _rec_parser(crit.sources[0])
+
+            return 0
+
+        criterion_memory = self.criterion._predict_memory_from_sources()
+        source_mem = self.sources[0].memory_usage.sum()
+        source_rows = self.sources[0].stats[0]['count']
+
+        return (criterion_memory * source_rows) + _rec_parser(self.criterion) * (source_mem / source_rows)
 
     def _pandas(self):
         # self.criterion might not already be computed since it is not
@@ -723,6 +817,9 @@ class OrderBy(DataFrame):
 
         self._sql_query = 'SELECT * FROM {} ORDER BY {}' \
             .format(self.sources[0].name, ', '.join(order_by))
+
+    def _predict_memory_from_sources(self):
+        return self.sources[0].memory_usage.sum()
 
     def _pandas(self):
         return self.sources[0].result.sort_values(self.order_cols,
@@ -768,6 +865,9 @@ class Join(DataFrame):
             .format(', '.join(output_cols), source_1.name, source_2.name,
                     ' AND '.join(join_cols))
 
+    def _predict_memory_from_sources(self):
+        raise NotImplementedError
+
     def _pandas(self):
         return pd.merge(self.sources[0].result, self.sources[1].result,
                         left_on=self.left_keys, right_on=self.right_keys)
@@ -786,6 +886,9 @@ class Union(DataFrame):
                                              .format(source.name)
                                              for source in self.sources)
 
+    def _predict_memory_from_sources(self):
+        return sum([s.memory_usage.sum() for s in self.sources])
+
     def _pandas(self):
         return pd.concat([s.result for s in self.sources])
 
@@ -799,6 +902,12 @@ class Limit(DataFrame):
 
         self._sql_query = 'SELECT * FROM {} LIMIT {}'.format(
             self.sources[0].name, self.n)
+
+    def _predict_memory_from_sources(self):
+        prev_mem = self.sources[0].memory_usage.sum()
+        shrink_ratio = self.n / self.sources[0].stats[0]['count']
+        sample_mem = prev_mem * shrink_ratio
+        return sample_mem
 
     def _pandas(self):
         return self.sources[0].result[:self.n]
@@ -837,6 +946,10 @@ class GroupByDataFrame(BaseFrame):
         return 'GroupBy({}, by={})'.format(self.sources[0].name,
                                            self.groupby_cols)
 
+    def _predict_memory_from_sources(self):
+        # TODO: actually use stats for groups
+        return self.sources[0].memory_usage.sum()
+
     def _pandas(self):
         grouped = self.sources[0].result.groupby(self.groupby_cols,
                                                  as_index=self.as_index)
@@ -862,8 +975,12 @@ class GroupByProjection(GroupByDataFrame):
         if len(pd.Index(cols).difference(source.columns)) > 0:
             raise ValueError("Projection columns {} are not a subset of {}"
                              .format(cols, source.columns))
-        self.columns = self.columns[self.columns.isin(cols)
-                                    | self.columns.isin(self.groupby_cols)]
+        self.columns = self.columns[self.columns.isin(cols) |
+                                    self.columns.isin(self.groupby_cols)]
+
+    def _predict_memory_from_sources(self):
+        # TODO: actually use stats for groups
+        return self.sources[0].memory_usage[self.columns].sum()
 
     def __str__(self):
         return 'GroupByProjection({}, by={}, cols={})' \
@@ -935,6 +1052,9 @@ class Aggregator(DataFrame):
 
         return result
 
+    def _predict_memory_from_sources(self):
+        raise NotImplementedError
+
     def process_result(self, result):
         '''This function will be called by BaseFrame.compute'''
         if len(result) == 1:
@@ -969,6 +1089,9 @@ class FallbackOperation(DataFrame):
         self.args = args
         self.kwargs = kwargs
         self.columns = source.columns
+
+    def _predict_memory_from_sources(self):
+        raise NotImplementedError
 
     def _pandas(self):
         source_result = self.sources[0].result
@@ -1120,6 +1243,9 @@ class Arithmetic(DataFrame, ArithmeticMixin):
 
         self._sql_query = 'SELECT {} AS res FROM {}'.format(
             self._operation_as_str(), self.sources[0].name)
+
+    def _predict_memory_from_sources(self):
+        return self.sources[0].memory_usage
 
     def _pandas(self):
         # Operands might not be already computed since they are not technically
